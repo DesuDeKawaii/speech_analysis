@@ -11,12 +11,14 @@ class Call(Base):
     __tablename__ = "calls"
 
     id = Column(String, primary_key=True, index=True)
-    date = Column(DateTime)
-    operator = Column(String)
+    date = Column(DateTime, index=True)  # Индекс для быстрого поиска
+    operator = Column(String, index=True)  # Индекс для группировки
     phone = Column(String)
     duration = Column(Integer)
-    status = Column(String)
-    ai_data = Column(JSON)
+    status = Column(String, index=True)  # NEW/PROCESSED/FAILED
+    audio_url = Column(String)  # Ссылка на аудио в АТС
+    ai_data = Column(JSON)  # Результаты анализа от GPT
 
-# Правильный способ создания таблиц
-Base.metadata.create_all(bind=engine)
+def init_db():
+    """Инициализирует базу данных и создает таблицы"""
+    Base.metadata.create_all(bind=engine)

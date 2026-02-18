@@ -26,11 +26,18 @@ def create_mock_data():
     for _ in range(30):
         ai_mock = {
             "greeting": random.randint(4, 10),
+            "greeting_comment": "Все ок",
             "needs": random.randint(3, 9),
+            "needs_comment": "Мало вопросов",
             "presentation": random.randint(4, 10),
+            "presentation_comment": "Хорошо",
             "objection": random.randint(5, 10),
+            "objection_comment": "Справился",
+            "closing": random.randint(5, 10),
+            "closing_comment": "Записал",
             "services_count": random.choice([0, 1, 1, 2]),
             "bonus": random.choice([0, 0, 0, 500]),
+            "bonus_comment": "Бонус за сложность",
             "summary": fake.sentence(nb_words=15), # Чуть длиннее текст
             "recommendation": random.choice([
                 "Не перебивать клиента, выслушать до конца.",
@@ -122,10 +129,11 @@ def generate_excel():
         ws_detail.cell(row=r, column=5, value=ai.get('needs', 0))
         ws_detail.cell(row=r, column=6, value=ai.get('presentation', 0))
         ws_detail.cell(row=r, column=7, value=ai.get('objection', 0))
-        ws_detail.cell(row=r, column=8, value=ai.get('services_count', 0))
-        ws_detail.cell(row=r, column=9, value=ai.get('bonus', 0))
-        ws_detail.cell(row=r, column=10, value=ai.get('summary', '-'))
-        ws_detail.cell(row=r, column=11, value=ai.get('recommendation', '-'))
+        ws_detail.cell(row=r, column=8, value=ai.get('closing', 0)) # New column
+        ws_detail.cell(row=r, column=9, value=ai.get('services_count', 0))
+        ws_detail.cell(row=r, column=10, value=ai.get('bonus', 0))
+        ws_detail.cell(row=r, column=11, value=ai.get('summary', '-'))
+        ws_detail.cell(row=r, column=12, value=ai.get('recommendation', '-'))
 
         data_for_pandas.append({
             "Оператор": call.operator,
@@ -133,6 +141,7 @@ def generate_excel():
             "needs": ai.get('needs', 0),
             "presentation": ai.get('presentation', 0),
             "objection": ai.get('objection', 0),
+            "closing": ai.get('closing', 0),
             "services": ai.get('services_count', 0),
             "recommendation": ai.get('recommendation', '-')
         })
@@ -141,11 +150,12 @@ def generate_excel():
         'A': 25, # Оператор
         'B': 18, # Дата
         'C': 10, # Длительность
-        'D': 12, 'E': 12, 'F': 12, 'G': 12, 'H': 10, 'I': 10, # Оценки
-        'J': 50, # Анализ (широкий)
-        'K': 50  # Рекомендации (широкий)
+        'D': 10, 'E': 10, 'F': 10, 'G': 10, 'H': 10, 'I': 8, 'J': 8, # Оценки
+        'K': 50, # Анализ (широкий)
+        'L': 50  # Рекомендации (широкий)
     })
-    apply_beautiful_styles(ws_detail, start_row, start_row + len(calls) - 1, 11)
+    apply_beautiful_styles(ws_detail, start_row, start_row + len(calls) - 1, 12)
+
 
 
     # ==========================================
@@ -159,7 +169,8 @@ def generate_excel():
             # --- 1. Шапка ---
             ws_summary.cell(row=2, column=1, value=len(df))
             ws_summary.cell(row=2, column=2, value=df['services'].sum())
-            avg_total = (df['greeting'].mean() + df['needs'].mean() + df['presentation'].mean() + df['objection'].mean()) / 4
+            avg_total = (df['greeting'].mean() + df['needs'].mean() + 
+                         df['presentation'].mean() + df['objection'].mean() + df['closing'].mean()) / 5
             ws_summary.cell(row=2, column=3, value=round(avg_total, 2))
             
             # Стили для шапки (выравнивание по центру)
@@ -173,14 +184,25 @@ def generate_excel():
             current_row = start_row_sum
             for name, group in grouped:
                 avg_kpi = (group['greeting'].mean() + group['needs'].mean() + 
-                           group['presentation'].mean() + group['objection'].mean()) / 4
+                           group['presentation'].mean() + group['objection'].mean() + group['closing'].mean()) / 5
                 
                 status_text = "Золотой" if avg_kpi > 8.5 else "Серебряный" if avg_kpi >= 7 else "Медный"
                 status_val = f"{avg_kpi:.2f}\n{status_text}"
                 
-                rec_mode = group['recommendation'].mode()
-                top_rec = rec_mode[0] if not rec_mode.empty else "Нет данных"
-                final_ai = f"Статус: {status_text}.\nЧастая ошибка: {top_rec}"
+                # НОВОЕ: Генерируем итоговую рекомендацию через GPT
+                recommendations_list = group['recommendation'].tolist()
+                
+                # Пробуем использовать GPT для генерации итоговой рекомендации
+                try:
+                    from yandex_gpt import gpt_client
+                    print(f"🤖 Генерируем итоговую рекомендацию для {name} через GPT...")
+                    final_ai = gpt_client.generate_operator_summary(recommendations_list, name)
+                except Exception as e:
+                    print(f"⚠️ Не удалось сгенерировать через GPT: {e}")
+                    # Fallback: используем старую логику
+                    rec_mode = group['recommendation'].mode()
+                    top_rec = rec_mode[0] if not rec_mode.empty else "Нет данных"
+                    final_ai = f"Статус: {status_text}.\nЧастая ошибка: {top_rec}"
 
                 ws_summary.cell(row=current_row, column=1, value=name)
                 ws_summary.cell(row=current_row, column=2, value=len(group))
@@ -209,13 +231,18 @@ def generate_excel():
     # Формат: Report_16.02.26.xlsx
     date_str = datetime.now().strftime("%d.%m.%y")
     
-    output_filename = f"Report_{date_str}.xlsx"  #подправить, если в один день сделали два отчёта (не стирается старый)
+    output_filename = f"Report_{date_str}.xlsx"
     
     try:
         wb.save(output_filename)
         print(f"🚀 УСПЕХ! Файл создан: {output_filename}")
+        return output_filename  # Возвращаем путь к файлу
     except PermissionError:
         print(f"⛔ ОШИБКА: Закрой файл {output_filename} и попробуй снова.")
+        return None
+    except Exception as e:
+        print(f"❌ Ошибка при сохранении: {e}")
+        return None
 
 if __name__ == "__main__":
     init_db()

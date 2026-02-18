@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ВАЖНО: В .env должно быть MEGAFON_HOST=https://mamolog.megapbx.ru/crmapi/v1
-HOST = os.getenv("MEGAFON_HOST").rstrip('/')
-KEY = os.getenv("MEGAFON_KEY")
+HOST = os.getenv("MEGAFON_HOST", "").rstrip('/')
+KEY = os.getenv("MEGAFON_KEY", "")
 
 def sync_calls_from_megafon(days_back=7):
     print(f"📡 Стучусь в API, используя формат с вебхука...")
@@ -72,8 +72,9 @@ def sync_calls_from_megafon(days_back=7):
                 id=str(call_id),
                 date=datetime.now(), 
                 operator=item.get("user", "Оператор"),
-                client_phone=item.get("phone"),
+                phone=item.get("phone"),
                 duration=int(item.get("duration", 0)),
+                audio_url=item.get("link"),  # Ссылка на аудио
                 status="NEW",
                 ai_data={}
             )
@@ -87,6 +88,54 @@ def sync_calls_from_megafon(days_back=7):
         print(f"🔥 Ошибка: {e}")
     finally:
         session.close()
+
+def download_audio(audio_url: str, save_path: str) -> bool:
+    """Скачивает аудио файл из АТС Мегафон по ссылке
+    
+    Args:
+        audio_url: URL для скачивания аудио
+        save_path: Путь куда сохранить файл
+        
+    Returns:
+        bool: True если успешно скачано
+    """
+    print(f"📥 Скачиваем аудио: {audio_url}")
+    
+    try:
+        # Headers для авторизации (если нужна)
+        headers = {
+            "User-Agent": "Go-http-client/1.1"
+        }
+        
+        # Если URL содержит токен, используем его
+        # Иначе добавляем ключ как параметр
+        if "token" not in audio_url.lower() and KEY:
+            params = {"token": KEY}
+        else:
+            params = {}
+        
+        response = requests.get(
+            audio_url, 
+            headers=headers,
+            params=params,
+            timeout=60,
+            stream=True
+        )
+        
+        if response.status_code == 200:
+            with open(save_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            
+            print(f"✅ Файл сохранен: {save_path}")
+            return True
+        else:
+            print(f"❌ Ошибка скачивания: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        print(f"🔥 Ошибка при скачивании аудио: {e}")
+        return False
 
 if __name__ == "__main__":
     sync_calls_from_megafon()

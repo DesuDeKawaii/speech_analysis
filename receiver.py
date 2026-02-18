@@ -29,10 +29,11 @@ async def handle_megafon_webhook(request: Request):
                     id=callid,
                     date=datetime.now(),
                     operator=user,
-                    phone=phone, # <-- Исправлено: теперь поле называется 'phone'
+                    phone=phone,
                     duration=int(duration),
+                    audio_url=link,  # Сохраняем ссылку на аудио
                     status="NEW",
-                    ai_data={"audio_url": link}
+                    ai_data={}
                 )
                 session.add(new_call)
                 session.commit()

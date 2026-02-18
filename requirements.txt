@@ -1,4 +1,25 @@
+# Database
 sqlalchemy
+
+# Excel processing
 pandas
 openpyxl
+
+# HTTP requests
+requests
+
+# Environment variables
+python-dotenv
+
+# Email
+secure-smtplib
+
+# Testing data
 faker
+
+# FastAPI (для webhook)
+fastapi
+uvicorn
+
+# Other utilities
+python-dateutil

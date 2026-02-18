@@ -1,4 +1,40 @@
-.env
-calls.db
+# Ignore Python cache
 __pycache__/
-*.xlsx
+*.py[cod]
+*$py.class
+*.so
+
+# Environment variables
+.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Temporary audio files
+temp_audio/
+*.mp3
+*.wav
+
+# Excel reports (опционально - закомментируйте если хотите хранить в git)
+Report_*.xlsx
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Distribution
+dist/
+build/
+*.egg-info/
